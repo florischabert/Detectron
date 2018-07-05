@@ -155,7 +155,7 @@ def convert_collect_and_distribute(
         roi_min_level=roi_min_level,
         rpn_max_level=rpn_max_level,
         rpn_min_level=rpn_min_level,
-        rpn_post_nms_topN=rpn_post_nms_topN,
+        post_nms_topN=rpn_post_nms_topN,
     )
     return ret
 
@@ -285,6 +285,10 @@ def convert_net(args, net, blobs):
 
     reset_blob_names(blobs)
 
+
+def add_bbox_retinanet_ops(args, net, blobs):
+    pass
+    
 
 def add_bbox_ops(args, net, blobs):
     new_ops = []
@@ -607,7 +611,10 @@ def main():
     convert_net(args, net.Proto(), blobs)
 
     # add operators for bbox
-    add_bbox_ops(args, net, blobs)
+    if cfg.RETINANET.RETINANET_ON:
+        add_bbox_retinanet_ops(args, net, blobs)
+    else:
+        add_bbox_ops(args, net, blobs)
 
     if args.fuse_af:
         print('Fusing affine channel...')
