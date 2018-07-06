@@ -1,3 +1,4 @@
+import argparse
 import onnx
 import caffe2.python.onnx.frontend
 from caffe2.proto import caffe2_pb2
@@ -8,18 +9,38 @@ value_info = {
     'data': (data_type, data_shape)
 }
 
-predict_net = caffe2_pb2.NetDef()
-with open('model.pb', 'rb') as f:
-    predict_net.ParseFromString(f.read())
+def load_net(filename):
+    net = caffe2_pb2.NetDef()
+    with open(filename, 'rb') as f:
+        net.ParseFromString(f.read())
+    net.device_option.device_type = caffe2_pb2.CUDA
+    net.device_option.cuda_gpu_id = 0
+    return net
 
-init_net = caffe2_pb2.NetDef()
-with open('model_init.pb', 'rb') as f:
-    init_net.ParseFromString(f.read())
+def clean_net_ops(net):
+    for op in net.op:
+        bad_args = [arg for arg in op.arg if arg.name == 'exhaustive_search']
+        for arg in bad_args: op.arg.remove(arg)
 
-onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
-    predict_net,
-    init_net,
-    value_info,
-)
+def convert(predict, init, output):
+    predict_net = load_net(predict)
+    clean_net_ops(predict_net)
+    init_net = load_net(init)
+    
+    onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
+        predict_net, init_net, value_info)
 
-onnx.checker.check_model(onnx_model)
+    onnx.save(onnx_model, output)
+
+def main():
+    parser = argparse.ArgumentParser(description='Convert a caffe2 network to ONNX')
+    parser.add_argument('--model', dest='model', help='model file', default='predict_net.pb', type=str)
+    parser.add_argument('--init', dest='init', help='init file', default='init_net.pb', type=str)
+    parser.add_argument('--output', dest='output', help='output file', default='model.onnx', type=str)
+    args = parser.parse_args()
+    
+    convert(args.model, args.init, args.output)
+
+if __name__ == '__main__':
+    main()
+    
