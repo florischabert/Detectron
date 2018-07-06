@@ -2,18 +2,20 @@
 FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 # Install extra packages
-RUN apt-get update
-RUN apt-get install -y wget git libsm6 libxext6 python-networkx\
- graphviz vim
+RUN apt-get update && apt-get install -y\
+ wget git libsm6 libxext6 python-networkx\
+ graphviz python-pydot python-pydot-ng vim\
+ gdb cmake protobuf-compiler libprotoc-dev\
+ python-pip libblas-dev liblapacke-dev
 
-# Install conda and caffe2
-RUN wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-RUN bash Miniconda2-latest-Linux-x86_64.sh -b -p /conda
-ENV PATH="/conda/bin:${PATH}"
-RUN conda install -c caffe2 caffe2-cuda9.0-cudnn7
+# Install Caffe2
+RUN git clone https://github.com/pytorch/pytorch.git --recursive /pytorch
+RUN [ "/bin/bash", "-c", "cp /pytorch/modules/detectron/*.{h,cc,cu} /pytorch/caffe2/operators/" ]
+WORKDIR /pytorch/
+RUN python setup_caffe2.py install
 
 # Copy Detectron
-RUN git clone https://github.com/facebookresearch/detectron /detectron
+RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
 
 # Install Python dependencies
 RUN pip install -r /detectron/requirements.txt
