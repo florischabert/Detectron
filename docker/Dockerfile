@@ -1,7 +1,18 @@
-# Use Caffe2 image as parent image
-FROM nvcr.io/nvidia/caffe2:18.06-py2
+# Use CUDA image as parent image
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
-# Clone the Detectron repository
+# Install extra packages
+RUN apt-get update
+RUN apt-get install -y wget git libsm6 libxext6 python-networkx\
+ graphviz vim
+
+# Install conda and caffe2
+RUN wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN bash Miniconda2-latest-Linux-x86_64.sh -b -p /conda
+ENV PATH="/conda/bin:${PATH}"
+RUN conda install -c caffe2 caffe2-cuda9.0-cudnn7
+
+# Copy Detectron
 RUN git clone https://github.com/facebookresearch/detectron /detectron
 
 # Install Python dependencies
@@ -17,3 +28,6 @@ WORKDIR /detectron
 
 # Set up Python modules
 RUN make
+
+# Set dataset paths
+RUN ln -s /coco /detectron/detectron/datasets/data/coco
