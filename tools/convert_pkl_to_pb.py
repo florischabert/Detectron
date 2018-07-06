@@ -57,7 +57,7 @@ import detectron.utils.model_convert_utils as mutils
 import detectron.utils.vis as vis_utils
 
 c2_utils.import_contrib_ops()
-c2_utils.import_detectron_ops()
+#c2_utils.import_detectron_ops()
 
 # OpenCL may be enabled by default in OpenCV3; disable it because it's not
 # thread safe and causes unwanted GPU memory allocations.

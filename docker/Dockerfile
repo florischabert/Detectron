@@ -14,6 +14,12 @@ RUN [ "/bin/bash", "-c", "cp /pytorch/modules/detectron/*.{h,cc,cu} /pytorch/caf
 WORKDIR /pytorch/
 RUN python setup_caffe2.py install
 
+# Install ONNX
+RUN pip install typing
+RUN git clone --recursive https://github.com/onnx/onnx.git /onnx
+WORKDIR /onnx
+RUN python setup.py install
+
 # Copy Detectron
 RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
 
