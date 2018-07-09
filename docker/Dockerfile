@@ -41,16 +41,16 @@ RUN make install
 RUN rm -rf /cocoapi
 
 # Install Detectron
+ARG CACHE_FORCE=y
 RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
 WORKDIR /detectron
 RUN pip install --ignore-installed -r requirements.txt
 RUN mkdir -p build
 WORKDIR /detectron/build
-RUN cat /detectron/detectron/ops/upsample_op.h
 RUN cmake .. -DCUDA_ARCH_NAME=Volta && make -j8
 
 # Set dataset paths
 RUN ln -s /coco /detectron/detectron/datasets/data/coco
 
 # Set working dir
-RUN python -c 'import caffe2 onnx'
+WORKDIR /detectron
