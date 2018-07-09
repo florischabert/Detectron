@@ -17,7 +17,7 @@
 
 #include "caffe2/core/context_gpu.h"
 
-#include "upsample.h"
+#include "upsample_op.h"
 
 namespace caffe2 {
 

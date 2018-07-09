@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "upsample.h"
+#include "upsample_op.h"
 
 namespace caffe2 {
 
