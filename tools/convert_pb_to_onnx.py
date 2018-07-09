@@ -17,16 +17,23 @@ def load_net(filename):
     net.device_option.cuda_gpu_id = 0
     return net
 
-def clean_net_ops(net):
+def remove_non_onnx_ops(net):
     for op in net.op:
         bad_args = [arg for arg in op.arg if arg.name == 'exhaustive_search']
         for arg in bad_args: op.arg.remove(arg)
 
+def convert_ops_to_onnx(net):
+    for op in net.op:
+        if op.type == 'ResizeNearest':
+            op.type = 'Upsample'
+
 def convert(predict, init, output):
     predict_net = load_net(predict)
-    clean_net_ops(predict_net)
     init_net = load_net(init)
-    
+
+    remove_non_onnx_ops(predict_net)
+    convert_ops_to_onnx(predict_net)
+
     onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
         predict_net, init_net, value_info)
 
@@ -43,4 +50,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
