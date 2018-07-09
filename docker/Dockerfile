@@ -40,7 +40,7 @@ RUN pip install cython
 RUN make install
 
 # Install Detectron
-RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
+RUN git clone -b retinanet https://github.com/florischabert/detectron  /detectron
 WORKDIR /detectron
 RUN pip install pip==9.0.3 && pip install -r requirements.txt
 RUN mkdir -p build
