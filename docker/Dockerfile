@@ -1,24 +1,31 @@
 # Use CUDA image as parent image
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+FROM nvcr.io/nvidia/tensorrt:18.06-py2
 
 # Install extra packages
 RUN apt-get update && apt-get install -y\
  wget git libsm6 libxext6 python-networkx\
- graphviz python-pydot python-pydot-ng vim\
- gdb cmake protobuf-compiler libprotoc-dev\
- python-pip libblas-dev liblapacke-dev
+ graphviz python-pydot python-pydot-ng\
+ build-essential cmake gdb vim\
+ libprotobuf-dev protobuf-compiler
+
+# # Install conda
+RUN wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+RUN bash Miniconda2-latest-Linux-x86_64.sh -b -p /conda
+RUN rm -f Miniconda2-latest-Linux-x86_64.sh
+ENV PATH="/conda/bin:${PATH}"
 
 # Install Caffe2
-RUN git clone https://github.com/pytorch/pytorch.git --recursive /pytorch
-RUN [ "/bin/bash", "-c", "cp /pytorch/modules/detectron/*.{h,cc,cu} /pytorch/caffe2/operators/" ]
-WORKDIR /pytorch/
-RUN python setup_caffe2.py install
+# RUN conda install -c caffe2 caffe2-cuda9.0-cudnn7
 
-# Install ONNX
-RUN pip install typing
-RUN git clone --recursive https://github.com/onnx/onnx.git /onnx
-WORKDIR /onnx
-RUN python setup.py install
+# # Install ONNX 
+RUN conda install -c conda-forge onnx
+
+# Install TensorRT backend
+RUN git clone --recursive https://github.com/onnx/onnx-tensorrt.git /onnx-tensorrt
+RUN mkdir build
+WORKDIR /onnx-tensorrt/build
+RUN cmake .. -DTENSORRT_ROOT=/opt/tensorrt
+# RUN make -j8 && make install
 
 # Copy Detectron
 RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
@@ -35,7 +42,8 @@ RUN make install
 WORKDIR /detectron
 
 # Set up Python modules
-RUN make
+# RUN make
+# RUN make ops
 
 # Set dataset paths
 RUN ln -s /coco /detectron/detectron/datasets/data/coco

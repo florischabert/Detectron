@@ -1,7 +1,12 @@
 import argparse
 import onnx
+from caffe2.python import core, workspace
 import caffe2.python.onnx.frontend
 from caffe2.proto import caffe2_pb2
+import detectron.utils.c2 as c2_utils
+
+workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
+c2_utils.import_custom_ops()
 
 data_type = onnx.TensorProto.FLOAT
 data_shape = (1, 3, 800, 800)
@@ -13,8 +18,6 @@ def load_net(filename):
     net = caffe2_pb2.NetDef()
     with open(filename, 'rb') as f:
         net.ParseFromString(f.read())
-    net.device_option.device_type = caffe2_pb2.CUDA
-    net.device_option.cuda_gpu_id = 0
     return net
 
 def remove_non_onnx_ops(net):
@@ -37,6 +40,7 @@ def convert(predict, init, output):
     onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
         predict_net, init_net, value_info)
 
+    onnx.checker.check_model(onnx_model)
     onnx.save(onnx_model, output)
 
 def main():
