@@ -38,13 +38,15 @@ RUN git clone https://github.com/cocodataset/cocoapi.git /cocoapi
 WORKDIR /cocoapi/PythonAPI
 RUN pip install cython
 RUN make install
+RUN rm -rf /cocoapi
 
 # Install Detectron
-RUN git clone -b retinanet https://github.com/florischabert/detectron  /detectron
+RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
 WORKDIR /detectron
-RUN pip install pip==9.0.3 && pip install -r requirements.txt
+RUN pip install --ignore-installed -r requirements.txt
 RUN mkdir -p build
 WORKDIR /detectron/build
+RUN cat /detectron/detectron/ops/upsample_op.h
 RUN cmake .. -DCUDA_ARCH_NAME=Volta && make -j8
 
 # Set dataset paths
