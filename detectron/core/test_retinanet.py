@@ -78,16 +78,23 @@ def im_detect_bbox(model, im, timers=None):
     inputs['data'], im_scale, inputs['im_info'] = \
         blob_utils.get_image_blob(im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
     cls_probs, box_preds = [], []
-    for lvl in range(k_min, k_max + 1):
-        suffix = 'fpn{}'.format(lvl)
-        cls_probs.append(core.ScopedName('retnet_cls_prob_{}'.format(suffix)))
-        box_preds.append(core.ScopedName('retnet_bbox_pred_{}'.format(suffix)))
-    for k, v in inputs.items():
-        workspace.FeedBlob(core.ScopedName(k), v.astype(np.float32, copy=False))
 
-    workspace.RunNet(model.net.Proto().name)
-    cls_probs = workspace.FetchBlobs(cls_probs)
-    box_preds = workspace.FetchBlobs(box_preds)
+    if cfg.TENSORRT:
+        preds = model.run(inputs['data'])
+        for i in range(k_max + 1 - k_min):
+            cls_probs.append(preds[i])
+            box_preds.append(preds[i+5])
+    else:
+        for lvl in range(k_min, k_max + 1):
+            suffix = 'fpn{}'.format(lvl)
+            cls_probs.append(core.ScopedName('retnet_cls_prob_{}'.format(suffix)))
+            box_preds.append(core.ScopedName('retnet_bbox_pred_{}'.format(suffix)))
+        for k, v in inputs.items():
+            workspace.FeedBlob(core.ScopedName(k), v.astype(np.float32, copy=False))
+
+        workspace.RunNet(model.net.Proto().name)
+        cls_probs = workspace.FetchBlobs(cls_probs)
+        box_preds = workspace.FetchBlobs(box_preds)
 
     # here the boxes_all are [x0, y0, x1, y1, score]
     boxes_all = defaultdict(list)

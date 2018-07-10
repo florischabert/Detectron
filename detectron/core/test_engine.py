@@ -232,7 +232,10 @@ def test_net(
     roidb, dataset, start_ind, end_ind, total_num_images = get_roidb_and_dataset(
         dataset_name, proposal_file, ind_range
     )
-    model = initialize_model_from_cfg(weights_file, gpu_id=gpu_id)
+    if cfg.TENSORRT:
+        model = initialize_trt_engine(weights_file, gpu_id=gpu_id)
+    else:
+        model = initialize_model_from_cfg(weights_file, gpu_id=gpu_id)
     num_images = len(roidb)
     num_classes = cfg.MODEL.NUM_CLASSES
     all_boxes, all_segms, all_keyps = empty_results(num_classes, num_images)
@@ -337,6 +340,18 @@ def initialize_model_from_cfg(weights_file, gpu_id=0):
     if cfg.MODEL.KEYPOINTS_ON:
         workspace.CreateNet(model.keypoint_net)
     return model
+
+
+def initialize_trt_engine(onnx_model, gpu_id=0):
+    import onnx
+    import onnx_tensorrt.backend as backend
+
+    logger.info('Loading ONX model...')
+    model = onnx.load(onnx_model)
+
+    logger.info('Preparing TensorRT backend...')
+    engine = backend.prepare(model, device='CUDA:0')
+    return engine
 
 
 def get_roidb_and_dataset(dataset_name, proposal_file, ind_range):

@@ -1,21 +1,24 @@
 # Use Caffe2 image as parent image
 FROM nvcr.io/nvidia/caffe2:18.06-py2
 
+# Install TensorRT repo
+ADD nv-tensorrt-repo-* /nv-tensorrt.deb
+RUN dpkg -i /nv-tensorrt.deb
+
 # Install packages
 RUN apt-get update && apt-get install -y\
  wget git libsm6 libxext6 python-networkx\
  graphviz python-pydot python-pydot-ng\
  build-essential cmake swig vim gdb\
- libprotobuf-dev protobuf-compiler
+ libprotobuf-dev protobuf-compiler\
+ tensorrt python-libnvinfer-doc
 
-# Install TensorRT repo
-ADD nv-tensorrt-repo-* /nv-tensorrt.deb
-RUN dpkg -i /nv-tensorrt.deb && rm -f /nv-tensorrt.deb
-RUN apt-get install tensorrt python-libnvinfer-doc
+# Cleanup
 RUN apt-get remove -y nv-tensorrt-repo-*
+RUN rm -f /nv-tensorrt.deb
 
 # Install ONNX
-RUN pip remove onnx
+# RUN pip uninstall -y onnx
 RUN git clone https://github.com/onnx/onnx.git /onnx
 WORKDIR /onnx
 RUN git submodule update --init --recursive
@@ -30,6 +33,7 @@ RUN make -j8 install
 WORKDIR /onnx-tensorrt
 RUN python setup.py install
 RUN rm -rf /onnx-tensorrt
+RUN pip remove onnx
 
 # Install the COCO API
 RUN git clone https://github.com/cocodataset/cocoapi.git /cocoapi
@@ -39,7 +43,6 @@ RUN make install
 RUN rm -rf /cocoapi
 
 # Install Detectron
-ARG CACHE_DATE=2018
 RUN git clone -b retinanet https://github.com/florischabert/detectron /detectron
 WORKDIR /detectron
 RUN pip install --ignore-installed -r requirements.txt

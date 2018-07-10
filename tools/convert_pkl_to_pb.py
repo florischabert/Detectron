@@ -287,9 +287,11 @@ def convert_net(args, net, blobs):
 
 
 def add_bbox_retinanet_ops(args, net, blobs):
-    pass
+    kmax, kmin = cfg.FPN.RPN_MAX_LEVEL, cfg.FPN.RPN_MIN_LEVEL
+    net.Proto().external_output.extend([
+        n for l in range(kmin, kmax+1) for n in ['retnet_cls_prob_fpn'+str(l), 'retnet_bbox_pred_fpn'+str(l)]
+    ])
     
-
 def add_bbox_ops(args, net, blobs):
     new_ops = []
     new_external_outputs = []
@@ -606,13 +608,6 @@ def main():
         copy.deepcopy(model.net.Proto().external_output))
     net.Proto().type = args.net_execution_type
     net.Proto().num_workers = 1 if args.net_execution_type == 'simple' else 4
-
-    net.Proto().external_output.extend([
-        'retnet_cls_prob_fpn3', 'retnet_cls_prob_fpn4', 'retnet_cls_prob_fpn5',
-        'retnet_cls_prob_fpn6', 'retnet_cls_prob_fpn7',
-        'retnet_bbox_pred_fpn3', 'retnet_bbox_pred_fpn4', 'retnet_bbox_pred_fpn5',
-        'retnet_bbox_pred_fpn6', 'retnet_bbox_pred_fpn7'
-    ])
 
     # Reset the device_option, change to unscope name and replace python operators
     convert_net(args, net.Proto(), blobs)
