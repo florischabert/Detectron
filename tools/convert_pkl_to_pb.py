@@ -57,7 +57,7 @@ import detectron.utils.model_convert_utils as mutils
 import detectron.utils.vis as vis_utils
 
 c2_utils.import_contrib_ops()
-#c2_utils.import_detectron_ops()
+c2_utils.import_detectron_ops()
 
 # OpenCL may be enabled by default in OpenCV3; disable it because it's not
 # thread safe and causes unwanted GPU memory allocations.
@@ -606,6 +606,13 @@ def main():
         copy.deepcopy(model.net.Proto().external_output))
     net.Proto().type = args.net_execution_type
     net.Proto().num_workers = 1 if args.net_execution_type == 'simple' else 4
+
+    net.Proto().external_output.extend([
+        'retnet_cls_prob_fpn3', 'retnet_cls_prob_fpn4', 'retnet_cls_prob_fpn5',
+        'retnet_cls_prob_fpn6', 'retnet_cls_prob_fpn7',
+        'retnet_bbox_pred_fpn3', 'retnet_bbox_pred_fpn4', 'retnet_bbox_pred_fpn5',
+        'retnet_bbox_pred_fpn6', 'retnet_bbox_pred_fpn7'
+    ])
 
     # Reset the device_option, change to unscope name and replace python operators
     convert_net(args, net.Proto(), blobs)
