@@ -8,6 +8,10 @@ import detectron.utils.c2 as c2_utils
 workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
 c2_utils.import_custom_ops()
 
+@classmethod
+def _annotate_consumed_ignore(c, g): pass
+caffe2.python.onnx.frontend.Caffe2Frontend._annotate_consumed = _annotate_consumed_ignore
+
 data_type = onnx.TensorProto.FLOAT
 data_shape = (1, 3, 800, 800)
 value_info = {
