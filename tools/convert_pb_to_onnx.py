@@ -30,12 +30,6 @@ def _create_upsample(cls, op_def, shapes):
 caffe2.python.onnx.frontend.Caffe2Frontend._create_upsample = _create_upsample
 caffe2.python.onnx.frontend.Caffe2Frontend._special_operators['ResizeNearest'] = '_create_upsample'
 
-data_type = onnx.TensorProto.FLOAT
-data_shape = (1, 3, 800, 800)
-value_info = {
-    'data': (data_type, data_shape)
-}
-
 def load_net(filename):
     net = caffe2_pb2.NetDef()
     with open(filename, 'rb') as f:
@@ -47,7 +41,14 @@ def remove_non_onnx_ops(net):
         bad_args = [arg for arg in op.arg if arg.name == 'exhaustive_search']
         for arg in bad_args: op.arg.remove(arg)
 
-def convert(predict, init, output):
+def convert(predict, init, output, size):
+    value_info = {
+        'data': (
+            onnx.TensorProto.FLOAT, 
+            (1, 3, size[0], size[1])
+        )
+    }
+
     predict_net = load_net(predict)
     init_net = load_net(init)
 
@@ -64,9 +65,11 @@ def main():
     parser.add_argument('--model', dest='model', help='model file', default='predict_net.pb', type=str)
     parser.add_argument('--init', dest='init', help='init file', default='init_net.pb', type=str)
     parser.add_argument('--output', dest='output', help='output file', default='model.onnx', type=str)
+    parser.add_argument('--width', dest='width', help='Input width', default=1024, type=int)
+    parser.add_argument('--height', dest='height', help='Input height', default=1024, type=int)
     args = parser.parse_args()
     
-    convert(args.model, args.init, args.output)
+    convert(args.model, args.init, args.output, (args.width, args.height))
 
 if __name__ == '__main__':
     main()

@@ -232,7 +232,7 @@ def test_net(
     roidb, dataset, start_ind, end_ind, total_num_images = get_roidb_and_dataset(
         dataset_name, proposal_file, ind_range
     )
-    if cfg.TENSORRT:
+    if cfg.TEST.TENSORRT:
         model = initialize_trt_engine(weights_file, gpu_id=gpu_id)
     else:
         model = initialize_model_from_cfg(weights_file, gpu_id=gpu_id)
@@ -346,7 +346,7 @@ def initialize_trt_engine(onnx_model, gpu_id=0):
     import onnx
     import onnx_tensorrt.backend as backend
 
-    logger.info('Loading ONX model...')
+    logger.info('Loading ONNX model...')
     model = onnx.load(onnx_model)
 
     logger.info('Preparing TensorRT backend...')

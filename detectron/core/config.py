@@ -282,6 +282,12 @@ __C.TEST.FORCE_JSON_DATASET_EVAL = False
 # Not set for 1-stage models and 2-stage models with RPN subnetwork enabled
 __C.TEST.PRECOMPUTED_PROPOSALS = True
 
+# Use TensorRT backend for inference
+__C.TEST.TENSORRT = False
+
+# Select inference precision: FP16 or FP32
+__C.TEST.PRECISION = 'FP32'
+
 
 # ---------------------------------------------------------------------------- #
 # Test-time augmentations for bounding box detection
@@ -546,7 +552,6 @@ __C.RETINANET.SOFTMAX = False
 # Inference cls score threshold, anchors with score > INFERENCE_TH are
 # considered for inference
 __C.RETINANET.INFERENCE_TH = 0.05
-
 
 # ---------------------------------------------------------------------------- #
 # Solver options

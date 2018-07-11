@@ -77,13 +77,17 @@ def im_detect_bbox(model, im, timers=None):
     inputs = {}
     inputs['data'], im_scale, inputs['im_info'] = \
         blob_utils.get_image_blob(im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
+    data = np.zeros((1, 3, cfg.TEST.MAX_SIZE, cfg.TEST.MAX_SIZE), dtype=np.float32)
+    data_shape = inputs['data'].shape
+    data[:,:,:data_shape[-2],:data_shape[-1]] = inputs['data']
+    inputs['data'] = data
+    
     cls_probs, box_preds = [], []
-
-    if cfg.TENSORRT:
-        preds = model.run(inputs['data'])
+    if cfg.TEST.TENSORRT:
+        preds = model.run(data)
         for i in range(k_max + 1 - k_min):
-            cls_probs.append(preds[i])
-            box_preds.append(preds[i+5])
+            cls_probs.append(preds[i*2])
+            box_preds.append(preds[i*2+1])
     else:
         for lvl in range(k_min, k_max + 1):
             suffix = 'fpn{}'.format(lvl)
