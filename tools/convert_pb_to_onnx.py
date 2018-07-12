@@ -9,10 +9,6 @@ workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
 c2_utils.import_custom_ops()
 
 @classmethod
-def _annotate_consumed_ignore(c, g): pass
-caffe2.python.onnx.frontend.Caffe2Frontend._annotate_consumed = _annotate_consumed_ignore
-
-@classmethod
 def _create_upsample(cls, op_def, shapes):
     scales = [1.0, 1.0, 2.0, 2.0]
     for arg in op_def.arg:
