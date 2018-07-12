@@ -349,8 +349,9 @@ def initialize_trt_engine(onnx_model, gpu_id=0):
     logger.info('Loading ONNX model...')
     model = onnx.load(onnx_model)
 
-    logger.info('Preparing TensorRT backend...')
-    engine = backend.prepare(model, device='CUDA:0')
+    depth = 16 if cfg.TEST.FP16 else 32
+    logger.info('Preparing TensorRT inference engine in FP{}...'.format(depth))
+    engine = backend.prepare(model, device='CUDA:0', dtype_depth=depth)
     return engine
 
 
