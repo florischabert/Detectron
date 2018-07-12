@@ -79,7 +79,7 @@ def im_detect_bbox(model, im, timers=None):
         blob_utils.get_image_blob(im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
 
     # Pad fixed size input image
-    if cfg.TEST.FIXED_SIZE is not None:
+    if cfg.TEST.FIXED_SIZE:
         if len(cfg.TEST.FIXED_SIZE) != 2:
             raise ValueError('TEST.FIXED_SIZE should be (width, height)')
             

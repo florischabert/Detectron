@@ -290,7 +290,7 @@ __C.TEST.FP16 = False
 
 # Size of the fixed input size (smaller images are zero-padded).
 # Required with TensorRT
-__C.TEST.FIXED_SIZE = None
+__C.TEST.FIXED_SIZE = ()
 
 # ---------------------------------------------------------------------------- #
 # Test-time augmentations for bounding box detection
