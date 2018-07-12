@@ -11,11 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
  liblmdb-dev libopencv-dev libopenmpi-dev\
  libsnappy-dev libprotobuf-dev openmpi-bin\
  openmpi-doc protobuf-compiler\
- python-dev python-pip
+ python-dev python-pip graphviz
 
-RUN pip install --user\
- future numpy protobuf graphviz\
- python-pydot networkx
+RUN pip install --upgrade pip setuptools
+RUN pip install\
+ numpy protobuf networkx\
+ pydot future enum34\
+ pycuda
 
 # Install TensorRT
 COPY nv-tensorrt-repo-* /nv-tensorrt.deb
@@ -30,7 +32,7 @@ RUN git clone --recursive https://github.com/pytorch/pytorch.git /pytorch &&\
  cd pytorch &&\
  git submodule update --init &&\
  mkdir build && cd build &&\
- cmake .. && make install &&\
+ cmake .. && make -j8 install &&\
  rm -rf /pytorch
 
 # Install ONNX
