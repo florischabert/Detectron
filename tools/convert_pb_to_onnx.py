@@ -51,13 +51,10 @@ def convert(predict, init, output, size):
 
     predict_net = load_net(predict)
     init_net = load_net(init)
-
     remove_non_onnx_ops(predict_net)
 
     onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
         predict_net, init_net, value_info)
-
-    onnx.checker.check_model(onnx_model)
     onnx.save(onnx_model, output)
 
 def main():
