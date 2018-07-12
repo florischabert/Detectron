@@ -291,6 +291,9 @@ __C.TEST.TENSORRT = False
 # Run inference in FP16
 __C.TEST.FP16 = False
 
+# Size of the fixed input size (smaller images are zero-padded).
+# Required with TensorRT
+__C.TEST.FIXED_SIZE = None
 
 # ---------------------------------------------------------------------------- #
 # Test-time augmentations for bounding box detection

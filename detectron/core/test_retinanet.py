@@ -77,13 +77,22 @@ def im_detect_bbox(model, im, timers=None):
     inputs = {}
     inputs['data'], im_scale, inputs['im_info'] = \
         blob_utils.get_image_blob(im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
-    data = np.zeros((1, 3, cfg.TEST.MAX_SIZE, cfg.TEST.MAX_SIZE), dtype=np.float32)
-    data_shape = inputs['data'].shape
-    data[:,:,:data_shape[-2],:data_shape[-1]] = inputs['data']
-    inputs['data'] = data
+
+    # Pad fixed size input image
+    if cfg.TEST.FIXED_SIZE is not None:
+        if len(cfg.TEST.FIXED_SIZE) != 2:
+            raise ValueError('TEST.FIXED_SIZE should be (width, height)')
+            
+        data = np.zeros((1, 3, cfg.TEST.FIXED_SIZE[0], cfg.TEST.FIXED_SIZE[1]), dtype=np.float32)
+        data_shape = inputs['data'].shape
+        data[:,:,:data_shape[-2],:data_shape[-1]] = inputs['data']
+        inputs['data'] = data
     
     cls_probs, box_preds = [], []
     if cfg.TEST.TENSORRT:
+        if cfg.TEST.FIXED_SIZE is None:
+            raise ValueError('TEST.FIXED_SIZE required for TensorRT inference')
+
         preds = model.run(data)
         for i in range(k_max + 1 - k_min):
             cls_probs.append(preds[i*2])

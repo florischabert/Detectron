@@ -18,7 +18,7 @@ RUN apt-get remove -y nv-tensorrt-repo-*
 RUN rm -f /nv-tensorrt.deb
 
 # Install ONNX
-# RUN pip uninstall -y onnx
+RUN pip uninstall -y onnx
 RUN git clone https://github.com/onnx/onnx.git /onnx
 WORKDIR /onnx
 RUN git submodule update --init --recursive
@@ -26,14 +26,13 @@ RUN python setup.py install
 RUN rm -rf /onnx
 
 # Install TensorRT backend
-RUN git clone --recursive https://github.com/onnx/onnx-tensorrt.git /onnx-tensorrt
+RUN git clone -b fp16 --recursive https://github.com/florischabert/onnx-tensorrt.git /onnx-tensorrt
 WORKDIR /onnx-tensorrt/build
 RUN cmake .. -DTENSORRT_ROOT=/opt/tensorrt
 RUN make -j8 install
 WORKDIR /onnx-tensorrt
 RUN python setup.py install
 RUN rm -rf /onnx-tensorrt
-RUN pip remove onnx
 
 # Install the COCO API
 RUN git clone https://github.com/cocodataset/cocoapi.git /cocoapi
