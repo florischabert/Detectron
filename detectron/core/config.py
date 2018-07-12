@@ -288,8 +288,8 @@ __C.TEST.PRECOMPUTED_PROPOSALS = True
 # Use TensorRT backend for inference
 __C.TEST.TENSORRT = False
 
-# Select inference precision: FP16 or FP32
-__C.TEST.PRECISION = 'FP32'
+# Run inference in FP16
+__C.TEST.FP16 = False
 
 
 # ---------------------------------------------------------------------------- #
