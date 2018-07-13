@@ -281,13 +281,14 @@ def test_net(
                 timers['misc_mask'].average_time +
                 timers['misc_keypoints'].average_time
             )
+            fcn_time = timers['im_detect_bbox_fcn'].average_time
             logger.info(
                 (
                     'im_detect: range [{:d}, {:d}] of {:d}: '
-                    '{:d}/{:d} {:.3f}s + {:.3f}s (eta: {})'
+                    '{:d}/{:d} {:.3f}s ({:.3f}s in FCN)+ {:.3f}s (eta: {})'
                 ).format(
                     start_ind + 1, end_ind, total_num_images, start_ind + i + 1,
-                    start_ind + num_images, det_time, misc_time, eta
+                    start_ind + num_images, det_time, fcn_time, misc_time, eta
                 )
             )
 

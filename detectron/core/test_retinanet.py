@@ -88,6 +88,7 @@ def im_detect_bbox(model, im, timers=None):
         data[:,:,:data_shape[-2],:data_shape[-1]] = inputs['data']
         inputs['data'] = data
     
+    timers['im_detect_bbox_fcn'].tic()
     cls_probs, box_preds = [], []
     if cfg.TEST.TENSORRT:
         if cfg.TEST.FIXED_SIZE is None:
@@ -108,6 +109,7 @@ def im_detect_bbox(model, im, timers=None):
         workspace.RunNet(model.net.Proto().name)
         cls_probs = workspace.FetchBlobs(cls_probs)
         box_preds = workspace.FetchBlobs(box_preds)
+    timers['im_detect_bbox_fcn'].toc()
 
     # here the boxes_all are [x0, y0, x1, y1, score]
     boxes_all = defaultdict(list)
