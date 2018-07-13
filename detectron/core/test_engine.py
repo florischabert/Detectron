@@ -285,7 +285,7 @@ def test_net(
             logger.info(
                 (
                     'im_detect: range [{:d}, {:d}] of {:d}: '
-                    '{:d}/{:d} {:.3f}s ({:.3f}s in FCN)+ {:.3f}s (eta: {})'
+                    '{:d}/{:d} {:.3f}s ({:.3f}s in FCN) + {:.3f}s (eta: {})'
                 ).format(
                     start_ind + 1, end_ind, total_num_images, start_ind + i + 1,
                     start_ind + num_images, det_time, fcn_time, misc_time, eta
@@ -352,7 +352,9 @@ def initialize_trt_engine(onnx_model, gpu_id=0):
 
     dtype = np.dtype('float16') if cfg.TEST.FP16 else np.dtype('float32')
     logger.info('Preparing TensorRT inference engine in {}...'.format(dtype.name))
-    engine = backend.prepare(model, device='CUDA:0', dtype=dtype)
+    engine = backend.prepare(
+        model, device='CUDA:{}'.format(gpu_id),
+        max_batch_size=2, max_workspace_size=1<<31, dtype=dtype)
     return engine
 
 
