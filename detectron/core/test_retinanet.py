@@ -94,7 +94,7 @@ def im_detect_bbox(model, im, timers=None):
         if cfg.TEST.FIXED_SIZE is None:
             raise ValueError('TEST.FIXED_SIZE required for TensorRT inference')
 
-        preds = model.run(data)
+        preds = model.run(data, inputs['im_info'])
         for i in range(k_max + 1 - k_min):
             cls_probs.append(preds[i*2])
             box_preds.append(preds[i*2+1])

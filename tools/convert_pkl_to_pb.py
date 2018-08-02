@@ -50,6 +50,7 @@ from detectron.modeling import generate_anchors
 from detectron.utils.logging import setup_logging
 from detectron.utils.model_convert_utils import convert_op_in_proto
 from detectron.utils.model_convert_utils import op_filter
+from detectron.core.test_retinanet import _create_cell_anchors
 import detectron.utils.blob as blob_utils
 import detectron.core.test_engine as test_engine
 import detectron.utils.c2 as c2_utils
@@ -58,6 +59,7 @@ import detectron.utils.vis as vis_utils
 
 c2_utils.import_contrib_ops()
 c2_utils.import_detectron_ops()
+c2_utils.import_custom_ops()
 
 # OpenCL may be enabled by default in OpenCV3; disable it because it's not
 # thread safe and causes unwanted GPU memory allocations.
@@ -104,6 +106,11 @@ def parse_args():
         '--use_nnpack', dest='use_nnpack',
         help='Use nnpack for conv',
         default=1,
+        type=int)
+    parser.add_argument(
+        '--onnx', dest='onnx',
+        help='Export to ONNX',
+        default=0,
         type=int)
     parser.add_argument(
         'opts', help='See detectron/core/config.py for all options', default=None,
@@ -286,11 +293,99 @@ def convert_net(args, net, blobs):
     reset_blob_names(blobs)
 
 
-def add_bbox_retinanet_ops(args, net, blobs):
-    kmax, kmin = cfg.FPN.RPN_MAX_LEVEL, cfg.FPN.RPN_MIN_LEVEL
-    net.Proto().external_output.extend([
-        n for l in range(kmin, kmax+1) for n in ['retnet_cls_prob_fpn'+str(l), 'retnet_bbox_pred_fpn'+str(l)]
-    ])
+def export_to_onnx(net, init_net, args):
+    print('Exporting model to ONNX...')
+
+    # Override upsample conversion
+    import onnx
+    import caffe2.python.onnx.frontend
+
+    @classmethod
+    def _create_upsample(cls, op_def, shapes):
+        scales = [1.0, 1.0, 2.0, 2.0]
+        for arg in op_def.arg:
+            if arg.name == 'width_scale': scales[-2] = arg.f
+            if arg.name == 'height_scale': scales[-1] = arg.f
+
+        node = onnx.helper.make_node(
+            'Upsample',
+            inputs=op_def.input,
+            outputs=op_def.output,
+            scales=scales,
+            mode='nearest'
+        )
+        return node
+
+    caffe2.python.onnx.frontend.Caffe2Frontend._create_upsample = _create_upsample
+    caffe2.python.onnx.frontend.Caffe2Frontend._special_operators['ResizeNearest'] = '_create_upsample'
+
+    # Remove unsupported op arg
+    for op in net.Proto().op:
+        bad_args = [arg for arg in op.arg if arg.name == 'exhaustive_search']
+        for arg in bad_args: op.arg.remove(arg)
+
+    value_info = {
+        'data': (
+            onnx.TensorProto.FLOAT, 
+            (1, 3, 1280, 1280)
+        ),
+        'im_info': (
+            onnx.TensorProto.FLOAT, 
+            (3)
+        )
+    }
+
+    onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
+        net.Proto(), init_net.Proto(), value_info)
+
+    if cfg.RETINANET.RETINANET_ON:
+        k_max = cfg.FPN.RPN_MAX_LEVEL  # coarsest level of pyramid
+        k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
+
+        anchors = _create_cell_anchors() # generate anchors
+
+        for lvl in range(k_min, k_max + 1):
+            node = onnx.helper.make_node(
+                'BoxExtract',
+                inputs=[
+                    'retnet_cls_prob_fpn{}_1'.format(lvl),
+                    'retnet_bbox_pred_fpn{}_1'.format(lvl),
+                    'im_info',
+                ],
+                outputs=['retnet_detection_fpn{}'.format(lvl)],
+                score_thresh=cfg.RETINANET.INFERENCE_TH,
+                top_n=cfg.RETINANET.PRE_NMS_TOP_N,
+                anchors=anchors[lvl].reshape((-1))
+            )
+            onnx_model.graph.node.extend([node])
+
+        node = onnx.helper.make_node(
+            'BoxMergeWithNMS',
+            inputs=['retnet_detection_fpn{}'.format(l) 
+                for l in range(k_min, k_max + 1)
+            ],
+            outputs=['score_nms', 'bbox_nms', 'class_nms'],
+            nms=cfg.TEST.NMS,
+            detections_per_im=cfg.TEST.DETECTIONS_PER_IM
+        )
+        onnx_model.graph.node.extend([node])
+
+        onnx_model.graph.output.extend(
+            onnx.helper.make_tensor_value_info(
+                name=name,
+                elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
+                shape=(None, 1))
+            for name in node.output)
+        
+        onnx_model.graph.input.extend([
+            onnx.helper.make_tensor_value_info(
+                name='im_info',
+                elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
+                shape=(3,))])
+
+
+    onnx.save(onnx_model, os.path.join(args.out_dir, 'model.onnx'))
+    print('ONNX model saved to {}.'.format(args.out_dir))
     
 def add_bbox_ops(args, net, blobs):
     new_ops = []
@@ -501,6 +596,7 @@ def _prepare_blobs(
         [[blob.shape[2], blob.shape[3], im_scale]],
         dtype=np.float32
     )
+
     return blobs
 
 
@@ -514,7 +610,7 @@ def run_model_pb(args, net, init_net, im, check_blobs):
     input_blobs = _prepare_blobs(
         im,
         cfg.PIXEL_MEANS,
-        cfg.TEST.SCALE, cfg.TEST.MAX_SIZE
+        cfg.TEST.SCALE, cfg.TEST.MAX_SIZE,
     )
     gpu_blobs = []
     if args.device == 'gpu':
@@ -609,13 +705,13 @@ def main():
     net.Proto().type = args.net_execution_type
     net.Proto().num_workers = 1 if args.net_execution_type == 'simple' else 4
 
+    extra_inputs = []
+
     # Reset the device_option, change to unscope name and replace python operators
     convert_net(args, net.Proto(), blobs)
 
     # add operators for bbox
-    if cfg.RETINANET.RETINANET_ON:
-        add_bbox_retinanet_ops(args, net, blobs)
-    else:
+    if not cfg.RETINANET.RETINANET_ON:
         add_bbox_ops(args, net, blobs)
 
     if args.fuse_af:
@@ -641,6 +737,8 @@ def main():
 
     _save_models(net, init_net, args)
 
+    if args.onnx:
+        export_to_onnx(net, init_net, args)
 
 if __name__ == '__main__':
     main()
