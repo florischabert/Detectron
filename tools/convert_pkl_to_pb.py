@@ -364,7 +364,7 @@ def export_to_onnx(net, init_net, args):
             inputs=['retnet_detection_fpn{}'.format(l) 
                 for l in range(k_min, k_max + 1)
             ],
-            outputs=['score_nms', 'bbox_nms', 'class_nms'],
+            outputs=['score_nms', 'bbox_nms', 'class_nms', 'batch_splits'],
             nms=cfg.TEST.NMS,
             detections_per_im=cfg.TEST.DETECTIONS_PER_IM
         )
@@ -376,13 +376,12 @@ def export_to_onnx(net, init_net, args):
                 elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
                 shape=(None, 1))
             for name in node.output)
-        
-        onnx_model.graph.input.extend([
-            onnx.helper.make_tensor_value_info(
-                name='im_info',
-                elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
-                shape=(3,))])
-
+    
+    onnx_model.graph.input.extend([
+        onnx.helper.make_tensor_value_info(
+            name='im_info',
+            elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
+            shape=(3,))])
 
     onnx.save(onnx_model, os.path.join(args.out_dir, 'model.onnx'))
     print('ONNX model saved to {}.'.format(args.out_dir))
