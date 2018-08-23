@@ -331,7 +331,7 @@ def export_to_onnx(net, init_net, args):
         ),
         'im_info': (
             onnx.TensorProto.FLOAT, 
-            (3)
+            (1, 3)
         )
     }
 
@@ -343,30 +343,22 @@ def export_to_onnx(net, init_net, args):
         k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
 
         anchors = _create_cell_anchors() # generate anchors
+        anchors = np.array([anchors[i] for i in range(k_min, k_max+1)].reshape((-1)))
 
-        for lvl in range(k_min, k_max + 1):
-            node = onnx.helper.make_node(
-                'BoxExtract',
-                inputs=[
-                    'retnet_cls_prob_fpn{}_1'.format(lvl),
-                    'retnet_bbox_pred_fpn{}_1'.format(lvl),
-                    'im_info',
-                ],
-                outputs=['retnet_detection_fpn{}'.format(lvl)],
-                score_thresh=cfg.RETINANET.INFERENCE_TH,
-                top_n=cfg.RETINANET.PRE_NMS_TOP_N,
-                anchors=anchors[lvl].reshape((-1))
-            )
-            onnx_model.graph.node.extend([node])
-
+        node_inputs = ['im_info']
+        for i in range(k_min, k_max+1):
+            node_inputs.extend([
+                'retnet_cls_prob_fpn{}_1'.format(i), 
+                'retnet_bbox_pred_fpn{}_1'.format(i)])
         node = onnx.helper.make_node(
-            'BoxMergeWithNMS',
-            inputs=['retnet_detection_fpn{}'.format(l) 
-                for l in range(k_min, k_max + 1)
-            ],
+            'BoxDecode',
+            inputs=node_inputs,
             outputs=['score_nms', 'bbox_nms', 'class_nms', 'batch_splits'],
-            nms=cfg.TEST.NMS,
-            detections_per_im=cfg.TEST.DETECTIONS_PER_IM
+            score_thresh=cfg.RETINANET.INFERENCE_TH,
+            pre_nms_top_n=cfg.RETINANET.PRE_NMS_TOP_N,
+            nms_thresh=cfg.TEST.NMS,
+            detections_per_im=cfg.TEST.DETECTIONS_PER_IM,
+            anchors=anchors
         )
         onnx_model.graph.node.extend([node])
 
@@ -377,11 +369,11 @@ def export_to_onnx(net, init_net, args):
                 shape=(None, 1))
             for name in node.output)
     
-    onnx_model.graph.input.extend([
-        onnx.helper.make_tensor_value_info(
-            name='im_info',
-            elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
-            shape=(3,))])
+        onnx_model.graph.input.extend([
+            onnx.helper.make_tensor_value_info(
+                name='im_info',
+                elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
+                shape=(1, 3))])
 
     onnx.save(onnx_model, os.path.join(args.out_dir, 'model.onnx'))
     print('ONNX model saved to {}.'.format(args.out_dir))
