@@ -343,13 +343,14 @@ def export_to_onnx(net, init_net, args):
         k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
 
         anchors = _create_cell_anchors() # generate anchors
-        anchors = np.array([anchors[i] for i in range(k_min, k_max+1)].reshape((-1)))
 
         node_inputs = ['im_info']
         for i in range(k_min, k_max+1):
             node_inputs.extend([
                 'retnet_cls_prob_fpn{}_1'.format(i), 
                 'retnet_bbox_pred_fpn{}_1'.format(i)])
+        anchors = [anchors[i] for i in range(k_min, k_max+1)]
+
         node = onnx.helper.make_node(
             'BoxDecode',
             inputs=node_inputs,
@@ -358,7 +359,8 @@ def export_to_onnx(net, init_net, args):
             pre_nms_top_n=cfg.RETINANET.PRE_NMS_TOP_N,
             nms_thresh=cfg.TEST.NMS,
             detections_per_im=cfg.TEST.DETECTIONS_PER_IM,
-            anchors=anchors
+            anchors=anchors,
+            abchors_counts=[len(a) for a in anchors]
         )
         onnx_model.graph.node.extend([node])
 
