@@ -351,40 +351,41 @@ def export_to_onnx(net, init_net, args):
                          'retnet_classes_fpn{}'.format(lvl)],
                 score_thresh=cfg.RETINANET.INFERENCE_TH,
                 top_n=cfg.RETINANET.PRE_NMS_TOP_N,
-                anchors=anchors[lvl],
-                scale=2. ** lvl,
+                anchors=np.array(anchors[lvl]).reshape((-1)),
+                scale=2. ** lvl
             )
             onnx_model.graph.node.extend([node])
 
-        for t in ['scores', 'boxes', 'classes']:
+        output_names = ['scores', 'boxes', 'classes']
+        for t in output_names:
             node = onnx.helper.make_node(
                 'Concat',
                 inputs=['retnet_{}_fpn{}'.format(t, lvl) for lvl in levels],
-                outpus=['retnet_{}'.format(t)],
+                outputs=['retnet_{}'.format(t)],
                 axis=1
             )
             onnx_model.graph.node.extend([node])
 
-        node_outputs = {
+        node = onnx.helper.make_node(
+            'BoxNMS',
+            inputs=['retnet_{}'.format(t) for t in output_names],
+            outputs=output_names,
+            nms_thresh=cfg.TEST.NMS,
+            detections_per_im=cfg.TEST.DETECTIONS_PER_IM
+        )
+        onnx_model.graph.node.extend([node])
+
+        output_shapes = {
             'scores': (None, cfg.TEST.DETECTIONS_PER_IM),
             'boxes': (None, cfg.TEST.DETECTIONS_PER_IM, 4),
             'classes': (None, cfg.TEST.DETECTIONS_PER_IM),
         }
-        node = onnx.helper.make_node(
-            'BoxNMS',
-            inputs=['retnet_{}'.format(t) for t in node_outputs.keys()],
-            outputs=node_outputs.keys(),
-            nms_thresh=cfg.TEST.NMS,
-            detections_per_im=cfg.TEST.DETECTIONS_PER_IM,
-        )
-        onnx_model.graph.node.extend([node])
-
         onnx_model.graph.output.extend(
             onnx.helper.make_tensor_value_info(
                 name=name,
                 elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
-                shape=shape)
-            for name, shape in node_outputs.items())
+                shape=output_shapes[name])
+            for name in output_names)
 
     onnx.save(onnx_model, os.path.join(args.out_dir, 'model.onnx'))
     print('ONNX model saved to {}.'.format(args.out_dir))
