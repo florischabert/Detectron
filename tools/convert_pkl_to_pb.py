@@ -328,10 +328,6 @@ def export_to_onnx(net, init_net, args):
         'data': (
             onnx.TensorProto.FLOAT, 
             (1, 3, 1280, 1280)
-        ),
-        'im_info': (
-            onnx.TensorProto.FLOAT, 
-            (1, 3)
         )
     }
 
@@ -343,24 +339,43 @@ def export_to_onnx(net, init_net, args):
         k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
 
         anchors = _create_cell_anchors() # generate anchors
+        levels = range(k_min, k_max+1)
 
-        node_inputs = ['im_info']
-        for i in range(k_min, k_max+1):
-            node_inputs.extend([
-                'retnet_cls_prob_fpn{}_1'.format(i), 
-                'retnet_bbox_pred_fpn{}_1'.format(i)])
-        anchors = [anchors[i] for i in range(k_min, k_max+1)]
+        for lvl in levels:
+            node = onnx.helper.make_node(
+                'BoxDecode',
+                inputs=['retnet_cls_prob_fpn{}_1'.format(lvl), 
+                        'retnet_bbox_pred_fpn{}_1'.format(lvl)],
+                outputs=['retnet_scores_fpn{}'.format(lvl),
+                         'retnet_boxes_fpn{}'.format(lvl),
+                         'retnet_classes_fpn{}'.format(lvl)],
+                score_thresh=cfg.RETINANET.INFERENCE_TH,
+                top_n=cfg.RETINANET.PRE_NMS_TOP_N,
+                anchors=anchors[lvl],
+                scale=2. ** lvl,
+            )
+            onnx_model.graph.node.extend([node])
 
+        for t in ['scores', 'boxes', 'classes']:
+            node = onnx.helper.make_node(
+                'Concat',
+                inputs=['retnet_{}_fpn{}'.format(t, lvl) for lvl in levels],
+                outpus=['retnet_{}'.format(t)],
+                axis=1
+            )
+            onnx_model.graph.node.extend([node])
+
+        node_outputs = {
+            'scores': (None, cfg.TEST.DETECTIONS_PER_IM),
+            'boxes': (None, cfg.TEST.DETECTIONS_PER_IM, 4),
+            'classes': (None, cfg.TEST.DETECTIONS_PER_IM),
+        }
         node = onnx.helper.make_node(
-            'BoxDecode',
-            inputs=node_inputs,
-            outputs=['score_nms', 'bbox_nms', 'class_nms', 'batch_splits'],
-            score_thresh=cfg.RETINANET.INFERENCE_TH,
-            pre_nms_top_n=cfg.RETINANET.PRE_NMS_TOP_N,
+            'BoxNMS',
+            inputs=['retnet_{}'.format(t) for t in node_outputs.keys()],
+            outputs=node_outputs.keys(),
             nms_thresh=cfg.TEST.NMS,
             detections_per_im=cfg.TEST.DETECTIONS_PER_IM,
-            anchors=anchors,
-            abchors_counts=[len(a) for a in anchors]
         )
         onnx_model.graph.node.extend([node])
 
@@ -368,14 +383,8 @@ def export_to_onnx(net, init_net, args):
             onnx.helper.make_tensor_value_info(
                 name=name,
                 elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
-                shape=(None, 1))
-            for name in node.output)
-    
-        onnx_model.graph.input.extend([
-            onnx.helper.make_tensor_value_info(
-                name='im_info',
-                elem_type=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[np.dtype('float32')],
-                shape=(1, 3))])
+                shape=shape)
+            for name, shape in node_outputs.items())
 
     onnx.save(onnx_model, os.path.join(args.out_dir, 'model.onnx'))
     print('ONNX model saved to {}.'.format(args.out_dir))
