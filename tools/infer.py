@@ -141,7 +141,10 @@ def main(args):
             weights_file = cfg.TEST.WEIGHTS
         cfg.NUM_GPUS = 1
         assert_and_infer_cfg(cache_urls=False)
-        model = model_engine.initialize_model_from_cfg(weights_file)
+        if cfg.TEST.TENSORRT:
+            model = model_engine.initialize_trt_engine(weights_file)
+        else:
+            model = model_engine.initialize_model_from_cfg(weights_file)
         with c2_utils.NamedCudaScope(0):
             cls_boxes_, cls_segms_, cls_keyps_ = \
                 model_engine.im_detect_all(model, im, proposal_boxes)

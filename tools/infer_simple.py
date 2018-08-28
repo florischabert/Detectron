@@ -118,7 +118,10 @@ def main(args):
     assert not cfg.TEST.PRECOMPUTED_PROPOSALS, \
         'Models that require precomputed proposals are not supported'
 
-    model = infer_engine.initialize_model_from_cfg(args.weights)
+    if cfg.TEST.TENSORRT:
+        model = infer_engine.initialize_trt_engine(args.weights)
+    else:
+        model = infer_engine.initialize_model_from_cfg(args.weights)
     dummy_coco_dataset = dummy_datasets.get_coco_dataset()
 
     if os.path.isdir(args.im_or_folder):

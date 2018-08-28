@@ -87,17 +87,27 @@ def im_detect_bbox(model, im, timers=None):
         data_shape = inputs['data'].shape
         data[:,:,:data_shape[-2],:data_shape[-1]] = inputs['data']
         inputs['data'] = data
-    
+
     timers['im_detect_bbox_fcn'].tic()
     cls_probs, box_preds = [], []
     if cfg.TEST.TENSORRT:
         if cfg.TEST.FIXED_SIZE is None:
             raise ValueError('TEST.FIXED_SIZE required for TensorRT inference')
 
-        preds = model.run(inputs['data'])
+        scores, boxes, classes = model.run(inputs['data'])
         timers['im_detect_bbox_fcn'].toc()
+        print(len(scores))
+        print(classes)
 
-        return [[] for _ in range(cfg.MODEL.NUM_CLASSES)]
+        num_classes = cfg.MODEL.NUM_CLASSES
+        cls_boxes = [[] for _ in range(cfg.MODEL.NUM_CLASSES)]
+        for c in range(1, num_classes):
+            detections = np.zeros((boxes.shape[1], 5))
+            detections[:, 0:4] = boxes[0, :, :]
+            detections[:, 4] = scores[0, :]
+            inds = np.where(classes == c)[0] 
+            cls_boxes[c] = detections[inds, :]
+        return cls_boxes
     else:
         for lvl in range(k_min, k_max + 1):
             suffix = 'fpn{}'.format(lvl)
@@ -210,4 +220,7 @@ def im_detect_bbox(model, im, timers=None):
         cls_boxes[c] = detections[inds, :5]
     timers['misc_bbox'].toc()
 
+    print(len(detections))
+    print(detections[:, 4])
+    print(detections[:, 5])
     return cls_boxes
